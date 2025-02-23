@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test du Microphone</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      button { padding: 10px 20px; font-size: 16px; }
+      #status { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Test du Microphone</h1>
+    <button id="start">Démarrer le test du micro</button>
+    <p id="status"></p>
+    <script>
+    document.getElementById("start").addEventListener("click", function() {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            document.getElementById("status").innerText = "Accès au micro réussi !";
+            console.log("Accès au micro réussi !", stream);
+        })
+        .catch(function(err) {
+            document.getElementById("status").innerText = "Erreur lors de l'accès au micro : " + err;
+            console.error("Erreur lors de l'accès au micro :", err);
+        });
+    });
+    </script>
+</body>
+</html>
