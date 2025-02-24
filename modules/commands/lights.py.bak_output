@@ -2,6 +2,7 @@
 import modules.hue as hue
 
 def control_lights(action, room=None):
+    import modules.hue as hue
     result = hue.control_lights(action, room)
     if result is None:
         return "❌ Impossible de trouver la pièce spécifiée."

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Assistant Vocal et Textuel 🤖</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 30px; background-color: #f4f4f9; }
+        h1 { color: #2c3e50; }
+        button, input { padding: 10px 15px; font-size: 16px; margin: 5px; border-radius: 5px; border: 1px solid #ccc; }
+        button:hover { background-color: #16a085; color: white; cursor: pointer; }
+        #questionInput { width: 60%; border: 1px solid #aaa; border-radius: 5px; }
+        #status { margin-top: 15px; font-weight: bold; color: #2980b9; }
+        #history { width: 70%; margin: 20px auto; text-align: left; padding: 10px; border: 1px solid #ddd; border-radius: 10px; max-height: 400px; overflow-y: auto; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .message { margin-bottom: 12px; padding: 8px; border-radius: 8px; background-color: #ecf0f1; }
+        .question { font-weight: bold; color: #34495e; }
+        .answer { color: #27ae60; }
+    </style>
+</head>
+<body>
+    <h1>Assistant Vocal et Textuel 🤖</h1>
+
+    <div>
+        <input type="text" id="questionInput" placeholder="Écrivez votre question ici..." />
+        <button onclick="sendTextQuestion()">Envoyer 💬</button>
+    </div>
+
+    <div style="margin-top: 15px;">
+        <button id="startBtn" onclick="startListening()">🎧 Écouter en continu</button>
+        <button id="stopBtn" onclick="stopListening()" style="display: none;">🛑 Arrêter</button>
+    </div>
+
+    <p id="status">Micro inactif.</p>
+    <div id="history"></div>
+
+    <script>
+        let recognition;
+        let isListening = false;
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.lang = "fr-FR";
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onstart = function() {
+                document.getElementById("status").innerText = "🎤 Micro actif. Parlez...";
+                document.getElementById("startBtn").style.display = "none";
+                document.getElementById("stopBtn").style.display = "inline-block";
+                isListening = true;
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[event.results.length - 1][0].transcript.trim();
+                updateHistory(transcript, "⏳ Réponse en cours...");
+                sendQuestion(transcript);
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Erreur de reconnaissance :", event.error);
+                document.getElementById("status").innerText = `⚠️ Erreur : ${event.error}`;
+                if (event.error === "no-speech" && isListening) {
+                    recognition.start();  // Reprise automatique
+                }
+            };
+
+            recognition.onend = function() {
+                if (isListening) {
+                    recognition.start();  // Redémarrage automatique
+                } else {
+                    document.getElementById("status").innerText = "Micro inactif.";
+                    document.getElementById("startBtn").style.display = "inline-block";
+                    document.getElementById("stopBtn").style.display = "none";
+                }
+            };
+        } else {
+            alert("❌ Votre navigateur ne supporte pas la reconnaissance vocale.");
+        }
+
+        function startListening() {
+            if (recognition && !isListening) recognition.start();
+        }
+
+        function stopListening() {
+            if (recognition) {
+                isListening = false;
+                recognition.stop();
+            }
+        }
+
+        function sendTextQuestion() {
+            const question = document.getElementById("questionInput").value.trim();
+            if (question) {
+                updateHistory(question, "⏳ Réponse en cours...");
+                sendQuestion(question);
+                document.getElementById("questionInput").value = "";
+            }
+        }
+
+        function sendQuestion(question) {
+    fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: question })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.answer.trim() === "") {
+            // Si aucune commande n'est reconnue, retirer le message temporaire
+            let historyDiv = document.getElementById("history");
+            if (historyDiv.firstChild) {
+                historyDiv.removeChild(historyDiv.firstChild);
+            }
+        } else {
+            updateHistory(question, data.answer);
+        }
+        if (data.stop) stopListening();
+    })
+    .catch(() => updateHistory(question, "⚠️ Erreur de communication avec le serveur."));
+},
+                body: JSON.stringify({ question: question })
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateHistory(question, data.answer);
+                if (data.stop) stopListening();
+            })
+            .catch(() => updateHistory(question, "⚠️ Erreur de communication avec le serveur."));
+        }
+
+        function updateHistory(question, answer) {
+    if(answer.trim() === '') return;
+
+            const historyDiv = document.getElementById("history");
+            const messageDiv = document.createElement("div");
+            messageDiv.className = "message";
+            messageDiv.innerHTML = `
+                <div class="question">🗨️ Vous : ${question}</div>
+                <div class="answer">🤖 Assistant : ${answer}</div>
+            `;
+            historyDiv.prepend(messageDiv);
+        }
+
+        document.getElementById("questionInput").addEventListener("keydown", function(event) {
+            if (event.key === "Enter") sendTextQuestion();
+        });
+    </script>
+</body>
+</html>

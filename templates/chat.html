@@ -33,97 +33,106 @@
     <div id="history"></div>
 
     <script>
-        let recognition;
-        let isListening = false;
+    let recognition;
+    let isListening = false;
 
-        if ('webkitSpeechRecognition' in window) {
-            recognition = new webkitSpeechRecognition();
-            recognition.lang = "fr-FR";
-            recognition.continuous = true;
-            recognition.interimResults = false;
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.lang = "fr-FR";
+        recognition.continuous = true;
+        recognition.interimResults = false;
 
-            recognition.onstart = function() {
-                document.getElementById("status").innerText = "🎤 Micro actif. Parlez...";
-                document.getElementById("startBtn").style.display = "none";
-                document.getElementById("stopBtn").style.display = "inline-block";
-                isListening = true;
-            };
+        recognition.onstart = function() {
+            document.getElementById("status").innerText = "🎤 Micro actif. Parlez...";
+            document.getElementById("startBtn").style.display = "none";
+            document.getElementById("stopBtn").style.display = "inline-block";
+            isListening = true;
+        };
 
-            recognition.onresult = function(event) {
-                const transcript = event.results[event.results.length - 1][0].transcript.trim();
-                updateHistory(transcript, "⏳ Réponse en cours...");
-                sendQuestion(transcript);
-            };
+        recognition.onresult = function(event) {
+            const transcript = event.results[event.results.length - 1][0].transcript.trim();
+            updateHistory(transcript, "⏳ Réponse en cours...");
+            sendQuestion(transcript);
+        };
 
-            recognition.onerror = function(event) {
-                console.error("Erreur de reconnaissance :", event.error);
-                document.getElementById("status").innerText = `⚠️ Erreur : ${event.error}`;
-                if (event.error === "no-speech" && isListening) {
-                    recognition.start();  // Reprise automatique
-                }
-            };
-
-            recognition.onend = function() {
-                if (isListening) {
-                    recognition.start();  // Redémarrage automatique
-                } else {
-                    document.getElementById("status").innerText = "Micro inactif.";
-                    document.getElementById("startBtn").style.display = "inline-block";
-                    document.getElementById("stopBtn").style.display = "none";
-                }
-            };
-        } else {
-            alert("❌ Votre navigateur ne supporte pas la reconnaissance vocale.");
-        }
-
-        function startListening() {
-            if (recognition && !isListening) recognition.start();
-        }
-
-        function stopListening() {
-            if (recognition) {
-                isListening = false;
-                recognition.stop();
+        recognition.onerror = function(event) {
+            console.error("Erreur de reconnaissance :", event.error);
+            document.getElementById("status").innerText = `⚠️ Erreur : ${event.error}`;
+            if (event.error === "no-speech" && isListening) {
+                recognition.start();  // Reprise automatique
             }
-        }
+        };
 
-        function sendTextQuestion() {
-            const question = document.getElementById("questionInput").value.trim();
-            if (question) {
-                updateHistory(question, "⏳ Réponse en cours...");
-                sendQuestion(question);
-                document.getElementById("questionInput").value = "";
+        recognition.onend = function() {
+            if (isListening) {
+                recognition.start();  // Redémarrage automatique
+            } else {
+                document.getElementById("status").innerText = "Micro inactif.";
+                document.getElementById("startBtn").style.display = "inline-block";
+                document.getElementById("stopBtn").style.display = "none";
             }
-        }
+        };
+    } else {
+        alert("❌ Votre navigateur ne supporte pas la reconnaissance vocale.");
+    }
 
-        function sendQuestion(question) {
-            fetch("/ask", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question: question })
-            })
-            .then(response => response.json())
-            .then(data => {
+    function startListening() {
+        if (recognition && !isListening) recognition.start();
+    }
+
+    function stopListening() {
+        if (recognition) {
+            isListening = false;
+            recognition.stop();
+        }
+    }
+
+    function sendTextQuestion() {
+        const question = document.getElementById("questionInput").value.trim();
+        if (question) {
+            updateHistory(question, "⏳ Réponse en cours...");
+            sendQuestion(question);
+            document.getElementById("questionInput").value = "";
+        }
+    }
+
+    function sendQuestion(question) {
+        fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: question })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.answer.trim() === "") {
+                // Si aucune commande n'est reconnue, retirer le message temporaire
+                let historyDiv = document.getElementById("history");
+                if (historyDiv.firstChild) {
+                    historyDiv.removeChild(historyDiv.firstChild);
+                }
+            } else {
                 updateHistory(question, data.answer);
-                if (data.stop) stopListening();
-            })
-            .catch(() => updateHistory(question, "⚠️ Erreur de communication avec le serveur."));
-        }
+            }
+            if (data.stop) stopListening();
+        })
+        .catch(() => updateHistory(question, "⚠️ Erreur de communication avec le serveur."));
+    }
 
-        function updateHistory(question, answer) {
-            const historyDiv = document.getElementById("history");
-            const messageDiv = document.createElement("div");
-            messageDiv.className = "message";
-            messageDiv.innerHTML = `
-                <div class="question">🗨️ Vous : ${question}</div>
-                <div class="answer">🤖 Assistant : ${answer}</div>
-            `;
-            historyDiv.prepend(messageDiv);
-        }
+    function updateHistory(question, answer) {
+        if (answer.trim() === '') return;
+        const historyDiv = document.getElementById("history");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "message";
+        messageDiv.innerHTML = `
+            <div class="question">🗨️ Vous : ${question}</div>
+            <div class="answer">🤖 Assistant : ${answer}</div>
+        `;
+        historyDiv.prepend(messageDiv);
+    }
 
-        document.getElementById("questionInput").addEventListener("keydown", function(event) {
-            if (event.key === "Enter") sendTextQuestion();
-        });
-    </script>
+    document.getElementById("questionInput").addEventListener("keydown", function(event) {
+        if (event.key === "Enter") sendTextQuestion();
+    });
+</script>
 </body>
 </html>

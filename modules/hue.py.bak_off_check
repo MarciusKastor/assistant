@@ -11,27 +11,18 @@ ROOMS = {
 }
 
 def control_lights(state: str, room_name: str = None):
-    import requests
     if room_name:
         room_id = ROOMS.get(room_name.lower())
         if not room_id:
-            return False  # Pièce introuvable
+            return False  # Room not found
 
         # Vérifier l'état actuel via une requête GET
         get_url = f"http://{BRIDGE_IP}/api/{USERNAME}/groups/{room_id}"
         get_response = requests.get(get_url)
         if get_response.status_code == 200:
             current_state = get_response.json().get("action", {}).get("on")
-            try:
-                # Convertir current_state en booléen (pour gérer par exemple "true"/"false" en chaîne)
-                if isinstance(current_state, bool):
-                    current_state_bool = current_state
-                else:
-                    current_state_bool = str(current_state).lower() == "true"
-            except Exception:
-                current_state_bool = False
             desired_state = (state == "on")
-            if current_state_bool == desired_state:
+            if current_state == desired_state:
                 return "already"
 
         # Changer l'état de la lumière
